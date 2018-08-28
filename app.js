@@ -1,5 +1,6 @@
 // Include the cluster module
 var cluster = require('cluster');
+// require('babel-polyfill');
 
 // Code to run if we're in the master process
 if (cluster.isMaster) {
@@ -39,9 +40,18 @@ if (cluster.isMaster) {
     app.set('view engine', 'html');
     app.use(bodyParser.urlencoded({extended:true}));
 
-    app.get('/', function(req, res) {
-        res.render('index.html');
+    app.get('/:currency/:nextCurrency', function(req, res) {
+        console.log('param', req.params);
+        res.render('index.html', {
+            currency: req.params.currency,
+            nextCurrency: req.params.nextCurrency,
+        });
     });
+    // app.get('/*', function(req, res) {
+    //     setTimeout(() => {
+    //         res.json({'myName': 'adam eliot'});
+    //     }, 200);
+    // });
 
     var port = process.env.PORT || 3000;
 
