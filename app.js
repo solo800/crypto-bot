@@ -1,6 +1,8 @@
+// const assets = require('./src/assets');
+const AvailableAssets = require('./src/server/models/AvailableAssets');
+
 // Include the cluster module
-var cluster = require('cluster');
-// require('babel-polyfill');
+const cluster = require('cluster');
 
 // Code to run if we're in the master process
 if (cluster.isMaster) {
@@ -25,37 +27,79 @@ if (cluster.isMaster) {
     var express = require('express');
     var bodyParser = require('body-parser');
 
-    AWS.config.region = process.env.REGION
+    // AWS.config.region = process.env.REGION;
+    AWS.config.region = 'us-west-2';
+    AWS.config.endpoint = 'http://localhost:8000';
+    // AWS.config.aws_access_key_id = 'AKIAJSAVW2XLH4FAM6BA';
+    // AWS.config.aws_secret_access_key = '6rRXLubwNWI2ccv6kvH4BiwjXJalpKRwjC52dX4';
 
-    var sns = new AWS.SNS();
-    var ddb = new AWS.DynamoDB();
+    var db = new AWS.DynamoDB();
 
-    var ddbTable =  process.env.STARTUP_SIGNUP_TABLE;
-    var snsTopic =  process.env.NEW_SIGNUP_TOPIC;
+    // var ddbTable =  process.env.STARTUP_SIGNUP_TABLE;
+
     var app = express();
 
     app.use(express.static(`${__dirname}/dist`));
-    app.set('views', __dirname + '/dist');
+    app.set('views', `${__dirname}/dist`);
     app.engine('html', require('ejs').renderFile);
     app.set('view engine', 'html');
-    app.use(bodyParser.urlencoded({extended:true}));
+    app.use(bodyParser.urlencoded({extended: true}));
 
-    app.get('/:currency/:nextCurrency', function(req, res) {
-        console.log('param', req.params);
-        res.render('index.html', {
-            currency: req.params.currency,
-            nextCurrency: req.params.nextCurrency,
-        });
-    });
-    // app.get('/*', function(req, res) {
-    //     setTimeout(() => {
-    //         res.json({'myName': 'adam eliot'});
-    //     }, 200);
+    // app.get('/', function(req, res) {
+    //     res.render('index.html');
     // });
 
-    var port = process.env.PORT || 3000;
+    app.get('/assets-list', (req, res) => {
+        const availableAssets = new AvailableAssets(db);
 
-    var server = app.listen(port, function () {
+        availableAssets.getAssets(db).then(result => {
+            res.json(result);
+        }).catch(err => {
+            res.json(err);
+        });
+        // describeTable(db)
+        //     .then(res => {
+        //         console.log('found table', res);
+        //
+        //         // saveAssets(db)
+        //         //     .then(res => {
+        //         //         console.log('results of saving assets', res);
+        //         //     })
+        //         //     .catch(err => {
+        //         //         console.log('error saving assets', err);
+        //         //     });
+        //     })
+        //     .catch(err => {
+        //         createTable(db)
+        //             .then(res => {
+        //                 // add data to table
+        //                 console.log('in create then');
+        //                 saveAssets(db)
+        //                     .then(res => {
+        //                         console.log('results of saving assets after creating table', res);
+        //                     })
+        //                     .catch(err => {
+        //                         console.log('error saving assets after creating table', err);
+        //                     });
+        //             });
+        //     });
+
+        // res.json(assets);
+    });
+
+    // app.get('/:currency/:nextCurrency', function(req, res) {
+    //     setTimeout(() => {
+    //         res.json({
+    //             currency: req.params.currency,
+    //             nextCurrency: req.params.nextCurrency,
+    //         });
+    //     }, 2000);
+    // });
+
+    // var port = process.env.PORT || 3000;
+    const port = process.env.PORT || 8081;
+
+    const server = app.listen(port, function () {
         console.log('Server running at http://127.0.0.1:' + port + '/');
     });
 }

@@ -1,6 +1,6 @@
 import React from 'react';
-// import axios from 'axios';
-import assetsList from '../assets';
+import axios from 'axios';
+// import assetsList from '../assets';
 import Currency from './Currency';
 
 class CurrencyList extends React.Component {
@@ -10,65 +10,37 @@ class CurrencyList extends React.Component {
         this.state = {
             assetsList: [],
         };
-        this.restAPI = 'https://rest.coinapi.io/v1/';
-        this.apiKey = '8202B531-8496-495C-95AD-248D08A33937';
+
+        // aws dynamoDB local startup cd ~/dynamodb_local_latest && java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar -sharedDb
 
         // this.get = this.get.bind(this);
-        this.setSelectedCurrency = this.setSelectedCurrency.bind(this);
+        // this.setSelectedCurrency = this.setSelectedCurrency.bind(this);
+        this.getCurrencyList = this.getCurrencyList.bind(this);
     }
 
     // custom methods
-    // async get (currencyRef) {
-    //     console.log('curr ref', currencyRef);
-    //     let d;
-    //     await axios.get(`https://rest.coinapi.io/v1/exchangerate${currencyRef}?apikey=8202B531-8496-495C-95AD-248D08A33937`, {
-    //             Accept: 'application/json',
-    //             'Accept-Encoding': 'deflate, gzip',
-    //         })
-    //         .then(res => {
-    //             console.log('res', res);
-    //             d = res;
-    //         })
-    //         .catch(err => {
-    //             console.log('err', err);
-    //             d = err;
-    //         });
-    //
-    //     return d;
-    // }
+    async getCurrencyList (symbol = 'BTC', market = 'USD') {
+        // await axios(`${this.alphaVantage.root}${this.alphaVantage.apiKey}&${this.alphaVantage.function}&market=USD&symbol=BTC`)
 
-    setSelectedCurrency (currencyID = null, currencyName = null) {
-        if (null !== currencyID) {
+        const assetsList = [];
+        await axios.get('assets-list')
+            .then(res => {
+                console.log('res of assets-list', res);
+                // assetsList.push(...res.data)
+            })
+            .catch(err => {
+                console.log('error', err);
+            });
 
-        } else if (null !== currencyName) {
-
-        } else {
-            return false;
-        }
+        return assetsList;
     }
 
     // lifecycle methods
-    componentDidMount () {
-        console.log('assets are', assetsList);
-        console.log('params', window.location.pathname);
+    async componentDidMount () {
+        const a = await this.getCurrencyList();
 
-        // this.setState({assetsList}, () => {
-        //     console.log('pathname', window.location.pathname);
-        //     // this.setSelectedCurrency(window.location.pathname);
-        // });
+        console.log('a', a);
     }
-
-    // add (x) {
-    //     return new Promise((res, rej) => {
-    //         window.setTimeout(() => {
-    //             res(x * 2);
-    //         }, 4000);
-    //     });
-    // }
-    //
-    // async addNum (x) {
-    //     return await this.add(x);
-    // }
 
     render () {
         return (
