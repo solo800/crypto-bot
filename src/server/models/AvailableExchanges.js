@@ -3,7 +3,9 @@ const Model = require('./Model');
 module.exports = class AvailableAssets extends Model {
     constructor (args) {
         super(args);
-        this.tableName = 'AvailableAssets';
+        this.tableName = 'AvailableExchanges';
+
+        this.create = this.create.bind(this);
     }
 
     create () {
@@ -11,7 +13,7 @@ module.exports = class AvailableAssets extends Model {
             TableName: this.tableName,
             KeySchema: [
                 {
-                    AttributeName: 'asset_id',
+                    AttributeName: 'exchange_id',
                     KeyType: 'HASH',
                 },
                 {
@@ -21,7 +23,7 @@ module.exports = class AvailableAssets extends Model {
             ],
             AttributeDefinitions: [
                 {
-                    AttributeName: 'asset_id',
+                    AttributeName: 'exchange_id',
                     AttributeType: 'S',
                 },
                 {
@@ -38,8 +40,8 @@ module.exports = class AvailableAssets extends Model {
         return super.create(params);
     }
 
-    save (assets) {
-        return super.save(assets, this.tableName);
+    save (exchanges) {
+        return super.save(exchanges, this.tableName);
     }
 
     get () {
@@ -51,7 +53,6 @@ module.exports = class AvailableAssets extends Model {
                     resolve(super.sortItems(result, sortAttribute));
                 })
                 .catch(error => {
-                    console.warn('Scan AvailableAssets table error', error);
                     reject(error);
                 })
         });

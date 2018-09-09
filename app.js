@@ -1,5 +1,5 @@
-// const assets = require('./src/assets');
 const AvailableAssets = require('./src/server/models/AvailableAssets');
+const AvailableExchanges = require('./src/server/models/AvailableExchanges');
 
 // Include the cluster module
 const cluster = require('cluster');
@@ -7,10 +7,10 @@ const cluster = require('cluster');
 // Code to run if we're in the master process
 if (cluster.isMaster) {
     // Count the machine's CPUs
-    var cpuCount = require('os').cpus().length;
+    const cpuCount = require('os').cpus().length;
 
     // Create a worker for each CPU
-    for (var i = 0; i < cpuCount; i += 1) {
+    for (let i = 0; i < cpuCount; i += 1) {
         cluster.fork();
     }
 
@@ -23,9 +23,9 @@ if (cluster.isMaster) {
 
 // Code to run if we're in a worker process
 } else {
-    var AWS = require('aws-sdk');
-    var express = require('express');
-    var bodyParser = require('body-parser');
+    const AWS = require('aws-sdk');
+    const express = require('express');
+    const bodyParser = require('body-parser');
 
     // AWS.config.region = process.env.REGION;
     AWS.config.region = 'us-west-2';
@@ -33,11 +33,12 @@ if (cluster.isMaster) {
     // AWS.config.aws_access_key_id = 'AKIAJSAVW2XLH4FAM6BA';
     // AWS.config.aws_secret_access_key = '6rRXLubwNWI2ccv6kvH4BiwjXJalpKRwjC52dX4';
 
-    var db = new AWS.DynamoDB();
+    const db = new AWS.DynamoDB;
+    const docClient = new AWS.DynamoDB.DocumentClient();
 
-    // var ddbTable =  process.env.STARTUP_SIGNUP_TABLE;
+    // const ddbTable =  process.env.STARTUP_SIGNUP_TABLE;
 
-    var app = express();
+    const app = express();
 
     app.use(express.static(`${__dirname}/dist`));
     app.set('views', `${__dirname}/dist`);
@@ -45,58 +46,53 @@ if (cluster.isMaster) {
     app.set('view engine', 'html');
     app.use(bodyParser.urlencoded({extended: true}));
 
-    // app.get('/', function(req, res) {
-    //     res.render('index.html');
-    // });
+    app.get('/asset-list/:action?', (req, res) => {
+        const action = req.params.action;
 
-    app.get('/assets-list', (req, res) => {
-        const availableAssets = new AvailableAssets(db);
+        const availableAssets = new AvailableAssets({db, docClient});
 
-        availableAssets.getAssets(db).then(result => {
-            res.json(result);
-        }).catch(err => {
-            res.json(err);
-        });
-        // describeTable(db)
-        //     .then(res => {
-        //         console.log('found table', res);
-        //
-        //         // saveAssets(db)
-        //         //     .then(res => {
-        //         //         console.log('results of saving assets', res);
-        //         //     })
-        //         //     .catch(err => {
-        //         //         console.log('error saving assets', err);
-        //         //     });
-        //     })
-        //     .catch(err => {
-        //         createTable(db)
-        //             .then(res => {
-        //                 // add data to table
-        //                 console.log('in create then');
-        //                 saveAssets(db)
-        //                     .then(res => {
-        //                         console.log('results of saving assets after creating table', res);
-        //                     })
-        //                     .catch(err => {
-        //                         console.log('error saving assets after creating table', err);
-        //                     });
-        //             });
-        //     });
+        try {
+            console.log('action', action);
 
-        // res.json(assets);
+            availableAssets[action]()
+                .then(result => {
+                    res.json(result);
+                })
+                .catch(err => {
+                    res.json(err);
+                });
+        } catch (err) {
+            console.warn('error getting action', action);
+            res.send(`Invalid request asset-list/${action}`);
+        }
     });
 
-    // app.get('/:currency/:nextCurrency', function(req, res) {
-    //     setTimeout(() => {
-    //         res.json({
-    //             currency: req.params.currency,
-    //             nextCurrency: req.params.nextCurrency,
-    //         });
-    //     }, 2000);
-    // });
+    app.get('/exchange-list/:action?', (req, res) => {
+        const action = req.params.action;
 
-    // var port = process.env.PORT || 3000;
+        const availableExchanges = new AvailableExchanges({db, docClient});
+
+        try {
+            console.log('action', action);
+
+            availableExchanges[action]()
+                .then(result => {
+                    res.json(result);
+                })
+                .catch(err => {
+                    res.json(err);
+                });
+        } catch (err) {
+            console.warn('error getting action in exchange-list endpoint', action);
+            res.send(`Invalid request exchange-list/${action}`);
+        }
+    });
+
+    app.use((req, res) => {
+        res.send('<h1>404!<br>Page not found</h1>');
+    });
+
+    // const port = process.env.PORT || 3000;
     const port = process.env.PORT || 8081;
 
     const server = app.listen(port, function () {

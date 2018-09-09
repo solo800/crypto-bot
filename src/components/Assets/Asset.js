@@ -1,9 +1,9 @@
 import React from 'react';
 
-const Currency = props => {
+const Asset = props => {
     return (
         <option value={props.asset_id} selected={props.selected}>{props.name}</option>
     );
 };
 
-export default Currency;
+export default Asset;
