@@ -1,5 +1,7 @@
-const AvailableAssets = require('./src/server/models/AvailableAssets');
-const AvailableExchanges = require('./src/server/models/AvailableExchanges');
+const Assets = require('./src/server/models/Assets');
+const Exchanges = require('./src/server/models/Exchanges');
+const Symbols = require('./src/server/models/Symbols');
+const OpenHighLowCloseVolume = require('./src/server/models/OpenHighLowCloseVolume');
 
 // Include the cluster module
 const cluster = require('cluster');
@@ -46,50 +48,64 @@ if (cluster.isMaster) {
     app.set('view engine', 'html');
     app.use(bodyParser.urlencoded({extended: true}));
 
-    app.get('/asset-list/:action?', (req, res) => {
-        const action = req.params.action;
-
-        const availableAssets = new AvailableAssets({db, docClient});
-
+    app.get('/ohlcv/:asset/:exchange/:startDate/:endDate', (request, response) => {
         try {
-            console.log('action', action);
+            const asset = request.params.asset;
+            const exchange = request.params.exchange;
+            const startDate = request.params.startDate;
+            const endDate = request.params.endDate;
 
-            availableAssets[action]()
+            const ohlcv = new OpenHighLowCloseVolume({db, docClient});
+
+            console.log(`Asset: ${asset} Exchange: ${exchange} Start: ${startDate} End: ${endDate}`);
+
+            ohlcv.get(asset, exchange, startDate, endDate)
                 .then(result => {
-                    res.json(result);
+                    console.log('result', result);
+                    response.send(result.data)
                 })
-                .catch(err => {
-                    res.json(err);
+                .catch(error => {
+                    console.warn('error', error);
+                    response.send(error)
                 });
-        } catch (err) {
-            console.warn('error getting action', action);
-            res.send(`Invalid request asset-list/${action}`);
+
+        } catch (error) {
+            console.warn('error in ohlcv endpoint');
+            response.send(error);
         }
     });
 
-    app.get('/exchange-list/:action?', (req, res) => {
-        const action = req.params.action;
-
-        const availableExchanges = new AvailableExchanges({db, docClient});
-
+    app.get('/:tableName/:action?', (request, response) => {
         try {
-            console.log('action', action);
+            console.log('tableName', request.params.tableName, 'action', request.params.action);
 
-            availableExchanges[action]()
-                .then(result => {
-                    res.json(result);
-                })
-                .catch(err => {
-                    res.json(err);
-                });
-        } catch (err) {
-            console.warn('error getting action in exchange-list endpoint', action);
-            res.send(`Invalid request exchange-list/${action}`);
+            let model;
+
+            switch (request.params.tableName) {
+                case 'assets':
+                    model = new Assets({db, docClient});
+                    break;
+                case 'exchanges':
+                    model = new Exchanges({db, docClient});
+                    break;
+                case 'symbols':
+                    model = new Symbols({db, docClient});
+                    break;
+                default:
+                    response.send(`Error, ${request.params.tableName}/${request.params.action}`);
+            }
+
+            model[request.params.action]()
+                .then(result => response.json(result))
+                .catch(error => response.send(error));
+        } catch (error) {
+            console.warn('error getting action in assets endpoint', request.params.action);
+            response.send(`Invalid request assets/${request.params.action}`);
         }
     });
 
-    app.use((req, res) => {
-        res.send('<h1>404!<br>Page not found</h1>');
+    app.use((request, response) => {
+        response.send('<h1>404!<br>Page not found</h1>');
     });
 
     // const port = process.env.PORT || 3000;

@@ -4,6 +4,87 @@ module.exports = class Model {
     constructor ({db, docClient}) {
         this.db = db;
         this.docClient = docClient;
+        this.AssetsTableParams = {
+            TableName: 'Assets',
+            KeySchema: [
+                {
+                    AttributeName: 'asset_id',
+                    KeyType: 'HASH',
+                },
+                {
+                    AttributeName: 'name',
+                    KeyType: 'RANGE',
+                },
+            ],
+            AttributeDefinitions: [
+                {
+                    AttributeName: 'asset_id',
+                    AttributeType: 'S',
+                },
+                {
+                    AttributeName: 'name',
+                    AttributeType: 'S',
+                },
+            ],
+            ProvisionedThroughput: {
+                ReadCapacityUnits: 10,
+                WriteCapacityUnits: 10,
+            },
+        };
+        this.ExchangesTableParams = {
+            TableName: 'Exchanges',
+            KeySchema: [
+                {
+                    AttributeName: 'exchange_id',
+                    KeyType: 'HASH',
+                },
+                {
+                    AttributeName: 'name',
+                    KeyType: 'RANGE',
+                },
+            ],
+            AttributeDefinitions: [
+                {
+                    AttributeName: 'exchange_id',
+                    AttributeType: 'S',
+                },
+                {
+                    AttributeName: 'name',
+                    AttributeType: 'S',
+                },
+            ],
+            ProvisionedThroughput: {
+                ReadCapacityUnits: 10,
+                WriteCapacityUnits: 10,
+            },
+        };
+        this.SymbolsTableParams = {
+            TableName: 'Symbols',
+            KeySchema: [
+                {
+                    AttributeName: 'symbol_id',
+                    KeyType: 'HASH',
+                },
+                {
+                    AttributeName: 'asset_id_base',
+                    KeyType: 'RANGE',
+                },
+            ],
+            AttributeDefinitions: [
+                {
+                    AttributeName: 'symbol_id',
+                    AttributeType: 'S',
+                },
+                {
+                    AttributeName: 'asset_id_base',
+                    AttributeType: 'S',
+                },
+            ],
+            ProvisionedThroughput: {
+                ReadCapacityUnits: 10,
+                WriteCapacityUnits: 10,
+            },
+        };
 
         this.create = this.create.bind(this);
         this.drop = this.drop.bind(this);
@@ -12,9 +93,11 @@ module.exports = class Model {
         this.sortItems = this.sortItems.bind(this);
         this.scan = this.scan.bind(this);
         this.coinAPIGet = this.coinAPIGet.bind(this);
+        this.getDataAndSave = this.getDataAndSave.bind(this);
     }
 
     create (params) {
+        console.log('creating', params, this);
         return new Promise((resolve, reject) => {
             this.db.createTable(params, (error, result) => {
                 if (!error) {
@@ -41,7 +124,6 @@ module.exports = class Model {
     describe (tableName) {
         return new Promise((resolve, reject) => {
             this.db.describeTable({TableName: tableName}, (err, data) => {
-                console.log('in server', err, data);
                 if (!err) {
                     resolve(data);
                 } else {
@@ -54,19 +136,26 @@ module.exports = class Model {
     save (data, tableName) {
         let items;
 
-        return new Promise((resolve, reject) => {
-            items = data.splice(0, 25).map(Item => {
-                return {PutRequest: {Item}};
-            });
+        const promises = [];
+        while (0 < data.length) {
+            promises.push(new Promise((resolve, reject) => {
+                items = data.splice(0, 25).map(Item => {
+                    return {PutRequest: {Item}};
+                });
 
-            this.docClient.batchWrite({RequestItems: {[tableName]: items}}, (error, result) => {
-                if (error) {
-                    reject(error);
-                }
-            });
+                this.docClient.batchWrite({RequestItems: {[tableName]: items}}, (error, result) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        console.log('successful write of', items.length, 'items', result);
+                    }
+                });
 
-            resolve(true);
-        });
+                resolve(true);
+            }));
+        }
+
+        return Promise.all(promises);
     }
 
     sortItems (data, sortAttribute) {
@@ -77,8 +166,14 @@ module.exports = class Model {
         return new Promise((resolve, reject) => {
             this.docClient.scan(params, (error, data) => {
                 if (!error) {
-                    resolve(data.Items);
+                    if (0 < data.Items.length) {
+                        resolve(data.Items);
+                    } else {
+                        // no items but table exists, probably need to get this from coinapi
+                        resolve(this.getDataAndSave(params.TableName.toLowerCase(), params.TableName));
+                    }
                 } else {
+                    console.warn(`Scan failed for ${params.TableName}, table probably doesn't exist`);
                     reject(error);
                 }
             });
@@ -88,5 +183,25 @@ module.exports = class Model {
     coinAPIGet (endpoint) {
         const coinapi = new CoinAPIHelper();
         return coinapi.get(endpoint);
+    }
+
+    getDataAndSave (endpoint, tableName) {
+        return new Promise((resolve, reject) => {
+            this.coinAPIGet(endpoint)
+                .then(result => {
+                    this.save(result.data, tableName)
+                        .then(result => resolve(result.data))
+                        .catch(error => {
+                            console.warn(error);
+                            console.warn('Error saving data from coinapi', tableName);
+                            reject(error);
+                        });
+                })
+                .catch(error => {
+                    console.warn(error);
+                    console.warn('Error getting data from coinapi', tableName);
+                    reject(error);
+                });
+        });
     }
 };
