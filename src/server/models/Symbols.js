@@ -6,13 +6,19 @@ module.exports = class Symbols extends Model {
         this.tableName = 'Symbols';
 
         this.create = this.create.bind(this);
+        this.drop = this.drop.bind(this);
         this.save = this.save.bind(this);
         this.get = this.get.bind(this);
         this.getAll = this.getAll.bind(this);
+        this.getDataAndSave = this.getDataAndSave.bind(this);
     }
 
     create () {
         return super.create(this.SymbolsTableParams);
+    }
+
+    drop () {
+        return super.drop(this.tableName);
     }
 
     save (symbols) {
@@ -37,6 +43,7 @@ module.exports = class Symbols extends Model {
             })
         });
     }
+
     getAll () {
         return new Promise((resolve, reject) => {
             super.scan({TableName: this.tableName})
@@ -57,6 +64,24 @@ module.exports = class Symbols extends Model {
                         reject(error);
                     }
                 });
+        });
+    }
+
+    getDataAndSave () {
+        console.log('in getdandsave of sym');
+        return new Promise((resolve, reject) => {
+            this.getAll()
+                .then(result => {
+                    console.log('get all of result', result.data.length);
+                    resolve(result.data);
+                    // this.save(result.data, this.tableName)
+                    //     .then(result => {
+                    //         console.log('in result of save', result);
+                    //         resolve(result.data);
+                    //     })
+                    //     .catch(error => reject(error));
+                })
+                .catch(error => reject(error));
         });
     }
 };

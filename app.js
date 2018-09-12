@@ -48,18 +48,17 @@ if (cluster.isMaster) {
     app.set('view engine', 'html');
     app.use(bodyParser.urlencoded({extended: true}));
 
-    app.get('/ohlcv/:asset/:exchange/:startDate/:endDate', (request, response) => {
+    app.get('/ohlcv/:symbol/:startDate/:endDate', (request, response) => {
         try {
-            const asset = request.params.asset;
-            const exchange = request.params.exchange;
+            const symbol = request.params.symbol;
             const startDate = request.params.startDate;
             const endDate = request.params.endDate;
 
             const ohlcv = new OpenHighLowCloseVolume({db, docClient});
 
-            console.log(`Asset: ${asset} Exchange: ${exchange} Start: ${startDate} End: ${endDate}`);
+            console.log(`Symbol: ${symbol} Start: ${startDate} End: ${endDate}`);
 
-            ohlcv.get(asset, exchange, startDate, endDate)
+            ohlcv.get(symbol, startDate, endDate)
                 .then(result => {
                     console.log('result', result);
                     response.send(result.data)
@@ -68,7 +67,6 @@ if (cluster.isMaster) {
                     console.warn('error', error);
                     response.send(error)
                 });
-
         } catch (error) {
             console.warn('error in ohlcv endpoint');
             response.send(error);
@@ -95,9 +93,19 @@ if (cluster.isMaster) {
                     response.send(`Error, ${request.params.tableName}/${request.params.action}`);
             }
 
-            model[request.params.action]()
-                .then(result => response.json(result))
-                .catch(error => response.send(error));
+            if (request.params.tableName === 'assets' || request.params.tableName === 'exchanges') {
+                model[request.params.action]()
+                    .then(result => {
+                        console.log('res in app.js', result);
+                        response.json(result);
+                    })
+                    .catch(error => {
+                        console.warn('error in app.js', error);
+                        response.send(error);
+                    });
+            } else {
+                console.warn('tableName', request.params.tableName, request.params.action);
+            }
         } catch (error) {
             console.warn('error getting action in assets endpoint', request.params.action);
             response.send(`Invalid request assets/${request.params.action}`);

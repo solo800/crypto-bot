@@ -6,12 +6,17 @@ module.exports = class Assets extends Model {
         this.tableName = 'Assets';
 
         this.create = this.create.bind(this);
+        this.drop = this.drop.bind(this);
         this.save = this.save.bind(this);
         this.get = this.get.bind(this);
     }
 
     create () {
         return super.create(this.AssetsTableParams);
+    }
+
+    drop () {
+        return super.drop(this.tableName);
     }
 
     save (assets) {

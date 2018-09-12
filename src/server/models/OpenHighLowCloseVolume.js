@@ -9,7 +9,7 @@ module.exports = class OpenHighLowCloseVolume extends Model {
         this.get = this.get.bind(this);
     }
 
-    get (asset, exchange, startDateString, endDateString) {
+    get (symbol, startDateString, endDateString) {
         return new Promise((resolve, reject) => {
             const coinapi = new CoinAPIHelper();
 
@@ -30,7 +30,7 @@ module.exports = class OpenHighLowCloseVolume extends Model {
                 },
             ];
 
-            coinapi.get(`ohlcv/${exchange}_SPOT_${asset}_USD/history`, params)
+            coinapi.get(`ohlcv/${symbol}/history`, params)
                 .then(result => {
                     console.log('result in ohlcv', result);
                     resolve(result);
@@ -40,7 +40,7 @@ module.exports = class OpenHighLowCloseVolume extends Model {
                     reject(error);
                 });
 
-            console.log('in exRate', asset, exchange, startDateString, endDateString);
+            console.log('in exRate', symbol, startDateString, endDateString);
         });
     }
 }

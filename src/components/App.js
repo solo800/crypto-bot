@@ -11,8 +11,9 @@ class App extends React.Component {
         const util = new Utility();
 
         this.state = {
-            availableAssets: [],
-            availableExchanges: [],
+            assets: [],
+            exchanges: [],
+            symbols: [],
             selectedAsset: '',
             selectedExchange: '',
             startDate: util.formatDate('yyyy-mm-dd', new Date(new Date().getTime() - (86400000 * 2))),
@@ -36,13 +37,12 @@ class App extends React.Component {
     }
 
     async getAssetsAndExchanges () {
-        const lists = await Promise.all([axios.get('assets/get'), axios.get('exchanges/get')])
-            .then(results => results.map(result => result.data))
+        return await Promise.all([axios.get('assets/get'), axios.get('exchanges/get')])
+            .then(result => result.map(result => result.data))
             .catch(error => {
                 console.log('Error getting assets and exchages', error);
+                return [];
             });
-
-        return lists;
     }
 
     // event handlers
@@ -52,29 +52,23 @@ class App extends React.Component {
         const startDate = this.state.startDate;
         const endDate = this.state.endDate;
 
-        const symbol = await axios.get(`ohlcv/BTC/COINBASE/${startDate}/${endDate}`);
+        // const ohlcv = await axios.get(`ohlcv/${exchange}_SPOT_${asset}_USD/${startDate}/${endDate}`);
 
-        console.log('sym', symbol);
-        // const exchangeRates = await axios.get(`ohlcv/${asset}/USD/${startDate}/${endDate}`);
-        //
-        // console.log('ex rates are');
-        // console.log(exchangeRates);
-        //
-        // return exchangeRates;
+        console.log('sym', `${exchange}_SPOT_${asset}_USD`);
+
+        const symbol = this.state.symbols.filter(symbol => symbol.exchange_id === exchange);
+
+        console.log('symbol', symbol);
     }
 
     updateDate (event) {
-        this.setState({
-            [event.target.name]: event.target.value,
-        });
+        this.setState({[event.target.name]: event.target.value, });
     }
 
     updateSelectedItem (event) {
         const name = 'assets' === event.target.name ? 'selectedAsset' : 'selectedExchange';
 
-        this.setState({
-            [name]: event.target.value,
-        });
+        this.setState({[name]: event.target.value, });
     }
 
     // lifecycle methods
@@ -82,10 +76,51 @@ class App extends React.Component {
         const lists = await this.getAssetsAndExchanges();
 
         this.setState({
-            availableAssets: lists[0],
-            availableExchanges: lists[1],
+            assets: lists[0],
+            exchanges: lists[1].filter(exchange => 'BINANCE' === exchange.exchange_id || 'COINBASE' === exchange.exchange_id),
             selectedAsset: lists[0][0]['asset_id'],
-            selectedExchange: lists[1][0]['exchange_id'],
+            selectedExchange: 'COINBASE',
+            // selectedExchange: lists[1][0]['exchange_id'],
+        }, () => {
+            // for rebuilding the symbols table
+            axios.get('symbols/drop')
+                .then(result => {
+                    console.log('result of drop', result);
+
+                    axios.get('symbols/create')
+                        .then(result => {
+                            console.log('res', result);
+
+                            axios.get('symbols/getDataAndSave')
+                                .then(result => {
+                                    console.log('res gdas', result);
+
+                                    axios.get('symbols/getAll')
+                                        .then(result => {
+                                            console.log('symbols get result', result.data.map(res => res.exchange_id + ' ' + res.symbol_id));
+                                            console.log(result.data.filter(sym => sym.exchange_id === 'COINBASE'));
+                                            this.setState({symbols: result.data});
+                                        })
+                                        .catch(error => {
+                                            console.warn('Error getting symbols', error);
+                                        });
+                                })
+                                .catch(error => console.warn('err gdas', error));
+                        })
+                        .catch(error => console.warn('err', error));
+                })
+                .catch(error => console.warn('error dropping table', error));
+
+            // after state is set for user facing data query and set state for symbols, because the request takes more time
+            // axios.get('symbols/getAll')
+            //     .then(result => {
+            //         console.log('symbols get result', result.data.map(res => res.exchange_id + ' ' + res.symbol_id));
+            //         console.log(result.data.filter(sym => sym.exchange_id === 'COINBASE'));
+            //         this.setState({symbols: result.data});
+            //     })
+            //     .catch(error => {
+            //         console.warn('Error getting symbols', error);
+            //     });
         });
     }
 
@@ -99,13 +134,13 @@ class App extends React.Component {
                         label={'Asset'}
                         selected={this.state.selectedAsset}
                         onChange={this.updateSelectedItem}
-                        items={this.state.availableAssets.map(asset => this.assetExchangeMapper(asset, 'asset_id'))} />
+                        items={this.state.assets.map(asset => this.assetExchangeMapper(asset, 'asset_id'))} />
                     <List
                         name={'exchanges'}
                         label={'Exchange'}
                         selected={this.state.selectedExchange}
                         onChange={this.updateSelectedItem}
-                        items={this.state.availableExchanges.map(exchange => this.assetExchangeMapper(exchange, 'exchange_id'))} />
+                        items={this.state.exchanges.map(exchange => this.assetExchangeMapper(exchange, 'exchange_id'))} />
                     <div>
                         <label>Start Date</label>
                         <input type='date' value={this.state.startDate} name='startDate' onChange={this.updateDate} />

@@ -30,7 +30,7 @@ class CoinAPIHelper {
     }
 
     get (endpoint, params) {
-        console.log('utl', this.buildAPIURL(endpoint, params), endpoint, params);
+        // console.log('utl', this.buildAPIURL(endpoint, params));
         return axios.get(this.buildAPIURL(endpoint, params));
     }
 }

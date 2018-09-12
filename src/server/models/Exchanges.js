@@ -6,12 +6,17 @@ module.exports = class Exchanges extends Model {
         this.tableName = 'Exchanges';
 
         this.create = this.create.bind(this);
+        this.drop = this.drop.bind(this);
         this.save = this.save.bind(this);
         this.get = this.get.bind(this);
     }
 
     create () {
         return super.create(this.ExchangesTableParams);
+    }
+
+    drop () {
+        return super.drop(this.tableName);
     }
 
     save (exchanges) {

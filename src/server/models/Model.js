@@ -65,20 +65,20 @@ module.exports = class Model {
                     AttributeName: 'symbol_id',
                     KeyType: 'HASH',
                 },
-                {
-                    AttributeName: 'asset_id_base',
-                    KeyType: 'RANGE',
-                },
+                // {
+                //     AttributeName: 'asset_id_base',
+                //     KeyType: 'RANGE',
+                // },
             ],
             AttributeDefinitions: [
                 {
                     AttributeName: 'symbol_id',
                     AttributeType: 'S',
                 },
-                {
-                    AttributeName: 'asset_id_base',
-                    AttributeType: 'S',
-                },
+                // {
+                //     AttributeName: 'asset_id_base',
+                //     AttributeType: 'S',
+                // },
             ],
             ProvisionedThroughput: {
                 ReadCapacityUnits: 10,
@@ -134,27 +134,44 @@ module.exports = class Model {
     }
 
     save (data, tableName) {
+
         let items;
+        let itemsCount = 0;
 
         const promises = [];
         while (0 < data.length) {
-            promises.push(new Promise((resolve, reject) => {
-                items = data.splice(0, 25).map(Item => {
-                    return {PutRequest: {Item}};
-                });
+            items = data.splice(0, 25).map(Item => {
+                return {PutRequest: {Item}};
+            });
 
+            promises.push(new Promise((resolve, reject) => {
                 this.docClient.batchWrite({RequestItems: {[tableName]: items}}, (error, result) => {
                     if (error) {
+                        console.warn('error writing', items);
                         reject(error);
                     } else {
-                        console.log('successful write of', items.length, 'items', result);
+                        try {
+                            let coinbase = items.filter(i => {
+                                if (undefined === i.PutRequest.Item.exchange_id) {
+                                    console.log('no ex id', i);
+                                }
+                                return -1 < i.PutRequest.Item.exchange_id.indexOf('coinbase');
+                            });
+
+                            if (coinbase.length > 0) console.log(coinbase);
+                        } catch (e) {
+                            console.log('error filtering', e);
+                        }
                     }
                 });
 
                 resolve(true);
             }));
+
+            itemsCount += items.length;
         }
 
+        console.log(`Attempting to write ${itemsCount} items to db`);
         return Promise.all(promises);
     }
 
